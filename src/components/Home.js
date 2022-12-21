@@ -54,6 +54,52 @@ const Home = ({ home, provider, account, escrow, togglePop }) => {
         setOwner(owner)
     }
 
+    const buyHandler = async () => {
+        const escrowAmount = await escrow.escrowAmount(home.id)
+        const signer = await provider.getSigner()
+
+        let transaction = await escrow.connect(signer).depositEarnest(home.id, { value: escrowAmount })
+        await transaction.wait()
+
+        transaction = await escrow.connect(signer).approveSale(home.id)
+        await transaction.wait()
+
+        setHasBaught(true)
+    }
+
+    const inspectHandler = async () => {
+        const signer = await provider.getSigner()
+
+        const transaction = await escrow.connect(signer).updateInspectionStatus(home.id, true)
+        await transaction.wait()
+
+        setHasInspected(true)
+    }
+
+    const lendHandler = async () => {
+        const signer = await provider.getSigner()
+
+        const transaction = await escrow.connect(signer).approveSale(home.id)
+        await transaction.wait()
+
+        const lendAmount = (await escrow.purchasePrice(home.id) - await escrow.escrowAmount(home.id))
+        await signer.sendTransaction({ to: escrow.address, value: lendAmount.toString(), gasLimit: 60000 })
+
+        setHasLended(true)
+    }
+
+    const sellHandler = async () => {
+        const signer = await provider.getSigner()
+
+        let transaction = await escrow.connect(signer).approveSale(home.id)
+        await transaction.wait()
+
+        transaction = await escrow.connect(signer).finalizeSale(home.id)
+        await transaction.wait()
+
+        setHasSold(true)
+    }
+
     useEffect(() => {
         fetchDetails()
         fetchOwner()
@@ -82,19 +128,19 @@ const Home = ({ home, provider, account, escrow, togglePop }) => {
                     ) : (
                         <div>
                             {(account === inspector) ? (
-                                <button className='home__buy'>
+                                <button className='home__buy' onClick={inspectHandler} disabled={hasInspected}>
                                     Approve Inspection
                                 </button>
                             ) : (account === lender) ? (
-                                <button className='home__buy'>
+                                <button className='home__buy' onClick={lendHandler} disabled={hasLended}>
                                     Approve & Lend
                                 </button>
                             ) : (account === seller) ? (
-                                <button className='home__buy'>
+                                <button className='home__buy' onClick={sellHandler} disabled={hasSold}>
                                     Approve & Sell
                                 </button>
                             ) : (
-                            <button className='home__buy'>
+                            <button className='home__buy' onClick={buyHandler} disabled={hasBaught}>
                                 Buy
                             </button>
                             )}
